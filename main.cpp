@@ -1,12 +1,19 @@
 #include <iostream>
+#include <istream>
 #include <limits>
 #include <algorithm>
 #include <chrono>
 #include <iomanip>
 
+#include <getopt.h>
+
 #include "CIFReader.h"
 
 #include <Eigen/Dense>
+
+static int verbose_flag;
+
+
 
 std::string double2string(double dbl, int precision = 2)
 {
@@ -16,87 +23,59 @@ std::string double2string(double dbl, int precision = 2)
     return str;
 }
 
+bool endsWith(std::string str, std::string suffix)
+{
+    // https://stackoverflow.com/questions/25777655/a-c-function-that-tests-if-the-c-string-ends-with-a-suffix
+    if (str.length() < suffix.length())
+        return false;
+    return str.substr(str.length() - suffix.length()) == suffix;
+}
+
+std::string removeEnd(std::string str, int num)
+{
+    return str.substr(0, str.length() - num);
+}
+
 void makeXYZ(CIFReader cif, std::string output_file, double u, double v, double w, double a, double b, double c, double x_width, double y_width, double z_width, double alpha, double beta, double gamma);
 
-int main()
+/// Prints the help message
+void printHelp() {}
+
+void printVersion() { std::cout << "xyz2cif version: 0.1a" << std::endl; }
+
+/// Parse a string with 3 numbers separated by commas
+template <typename T>
+void parseThreeCommaList(std::string lst, T& a, T& b, T& c)
 {
-    // get file to open
-//    std::string folder = "D:\\Dropbox\\Documents\\PhD physics\\Analysis\\Geanina PbTiO\\Structures\\LSMO structure\\";
-//    std::string file = "PTO_ferro";
-    std::string folder = "D:\\Dropbox\\Documents\\PhD physics\\Data\\CIF\\";
-    std::string file = "znblende";
+    std::istringstream ss(lst);
+    int v;
+    std::string part;
+    std::vector<int> vec;
+    while(ss.good()) {
+        getline( ss, part, ',' );
+        vec.emplace_back(std::stoi(part));
+    }
 
+    if (vec.size() != 3)
+        throw std::runtime_error("Error: Input vector was " + std::to_string(vec.size()) + ", expected 3.");
 
-//    std::string out_folder = folder + file;
-//    CreateDirectory(out_folder.c_str(), NULL);
-
-    double u = 0, v = 0, w = 1; // zone axis of crystal (aka will be z direction)
-    double a = 1, b = 0, c = 0;
-//    double u = 1, v = -1, w = -1; // zone axis of crystal (aka will be z direction)
-//    double a = 1, b = 1, c = 0;
-    double x_width = 50, y_width = 50, z_width = 200;
-
-//    double alpha, beta, gamma;
-//    gamma = 0.0;
-
-    auto cif = CIFReader(folder + file + ".cif");
-
-    std::string out_file = folder + file + ".xyz";
-    makeXYZ(cif, out_file, u, v, w, a, b, c, x_width, y_width, z_width, 0.0, 0.0, 0.0);
-
-//    for (alpha = -2.0; alpha < 2.1; alpha += 0.2)
-//        for (beta = -2.0; beta < 2.1; beta += 0.2)
-//        {
-//            std::string out = folder + file + "\\" + file + "_alpha_" + double2string(alpha) + "_beta_" + double2string(beta) + ".xyz";
-//            makeXYZ(cif, out, u, v, w, a, b, c, x_width, y_width, z_width, alpha, beta, gamma);
-//        }
-
-    return 0;
+    a = vec[0];
+    b = vec[1];
+    c = vec[2];
 }
 
 void makeXYZ(CIFReader cif, std::string output_file, double u, double v, double w, double a, double b, double c, double x_width, double y_width, double z_width, double alpha, double beta, double gamma)
 {
-//    std::chrono::time_point<std::chrono::system_clock> start, end;
-//    start = std::chrono::system_clock::now();
-//    // USER SET VARIABLES
-//    // these will eventually be (command line?) arguments to function so they cna be user set
-//    double u = 1, v = 0, w = 0; // zone axis of crystal (aka will be z direction)
-//    double a = 0, b = 1, c = 0; // crystal direction of x in image (projected)
-//    double alpha = 0, beta = 0, gamma = 0; // tilt of crystal in degrees
-//    double x_width = 50, y_width = 50, z_width = 200;
-
-
-    // here just make call to function to create xyz file
-//    auto cif = CIFReader("D:\\GoogleDrive\\PhDPhysics\\Reports Presentations\\Domain walls as new 2D functional materials poster\\Images\\STO sim\\STO.cif");
-
     UnitCell  cell = cif.getUnitCell();
-
-    // small test to print out basic unit cell information
-//    for (auto at : cell.getAtoms())
-//    {
-//        std::cout << "Element: ";
-//        for ( auto n : at.getElements())
-//            std::cout << n << " ";
-//        std::cout << std::endl;
-//
-//        std::cout << "Occupancy: ";
-//        for ( auto o : at.getOccupancies())
-//            std::cout << o << " ";
-//        std::cout << std::endl;
-//
-//        std::cout << "Fractional positions: " << std::endl;
-//        for (auto p : at.getPositions())
-//            std::cout << p(0) << ", " << p(1) << ", " << p(2) << std::endl;
-//    }
 
     // TODO: rename this method (get cell axes?)
     auto geom  = cell.getCellGeometry();
     auto a_vector = Eigen::Vector3d(geom.getAVector().data());
-    //std::cout << "A vector: " << a_vector(0) << ", " << a_vector(1) << ", " << a_vector(2) << std::endl;
     auto b_vector = Eigen::Vector3d(geom.getBVector().data());
-    //std::cout << "B vector: " << b_vector(0) << ", " << b_vector(1) << ", " << b_vector(2) << std::endl;
     auto c_vector = Eigen::Vector3d(geom.getCVector().data());
-    //std::cout << "C vector: " << c_vector(0) << ", " << c_vector(1) << ", " << c_vector(2) << std::endl;
+
+    if (verbose_flag)
+        std::cout << "Unit cell with bases:\na:\n" << a_vector << "\nb:\n" << b_vector << "\nc:\n" << c_vector << std::endl;
 
     // this gives us the element type, occupancy and FRACTIONAL coords as well as the basis vectors
     // now we just need to tile them to fill a space?
@@ -108,28 +87,30 @@ void makeXYZ(CIFReader cif, std::string output_file, double u, double v, double 
     // create the rotation matrix
     auto za_rotation = Utilities::generateNormalisedRotationMatrix<double>(uvw, z_direction);
 
-    // similarly for rotation in x,y plane
-    Eigen::Vector3d abc = a * a_vector + b * b_vector + c * c_vector;
-    abc = za_rotation * abc;
-    abc(2) = 0.0; // no rotate the z-axis!
-    abc.normalize();
-    Eigen::Vector3d x_direction(std::vector<double>({1.0, 0.0, 0.0}).data());
-    // Need the negative angle here? so give inputs in opposite order?
-    auto xy_rotation = Utilities::generateNormalisedRotationMatrix<double>(x_direction, abc);
+    if (za_rotation.array().isNaN().sum() != 0) {
+        throw std::runtime_error("Zone axis rotation matrix contains NaNs");
+    }
+    if (verbose_flag)
+        std::cout << "Zone axis rotation:\n" << za_rotation << std::endl;
 
-//    double theta = -abc.dot(x_direction) / (abc.norm() * x_direction.norm());
-//
-//    double t_cos = std::cos(theta);
-//    double t_sin = std::sin(theta);
-//
-//    std::vector<double> data = {t_cos, -t_sin, 0.0, t_sin, t_cos, 0.0, 0.0, 0.0, 1.0};
-//    Eigen::Matrix3d xy_rotation(data.data());
-//
-//    std::vector<double> test1(za_rotation.size());
-//    Eigen::Matrix3d::Map(&test1[0], test1.size()) = za_rotation;
-//
-//    std::vector<double> test2(xy_rotation.size());
-//    Eigen::Matrix3d::Map(&test2[0], test2.size()) = xy_rotation;
+    // similarly for rotation in x,y plane, though here we default to 0 rotation
+    Eigen::Matrix3d xy_rotation = Eigen::Matrix3d::Identity();
+    if (a != 0 || b != 0 || c != 0)
+    {
+        Eigen::Vector3d abc = a * a_vector + b * b_vector + c * c_vector;
+        abc = za_rotation * abc;
+        abc(2) = 0.0; // no rotate the z-axis!
+        abc.normalize();
+        Eigen::Vector3d x_direction(std::vector<double>({1.0, 0.0, 0.0}).data());
+        // Need the negative angle here? so give inputs in opposite order?
+        xy_rotation = Utilities::generateNormalisedRotationMatrix<double>(x_direction, abc);
+    }
+
+    if (xy_rotation.array().isNaN().sum() != 0) {
+        throw std::runtime_error("Normal rotation matrix contains NaNs");
+    }
+    if (verbose_flag)
+        std::cout << "Normal rotation:\n" << xy_rotation << std::endl;
 
     // convert angles to radians
     alpha = alpha * PI / 180;
@@ -140,6 +121,9 @@ void makeXYZ(CIFReader cif, std::string output_file, double u, double v, double 
     auto x_rotation = Utilities::generateRotationMatrix<double>({1.0, 0.0, 0.0}, alpha);
     auto y_rotation = Utilities::generateRotationMatrix<double>({0.0, 1.0, 0.0}, beta);
     auto z_rotation = Utilities::generateRotationMatrix<double>({0.0, 0.0, 1.0}, gamma);
+
+    if (verbose_flag)
+        std::cout << "Tilt adjustments:\nalpha:\n" << x_rotation << "\nbeta:\n" << y_rotation << "\ngamma:\n" << z_rotation << std::endl;
 
     // for easy loopage
     std::vector<Eigen::Vector3d> basis = {a_vector, b_vector, c_vector};
@@ -153,6 +137,9 @@ void makeXYZ(CIFReader cif, std::string output_file, double u, double v, double 
         basis[i] = y_rotation * basis[i];
         basis[i] = z_rotation * basis[i];
     }
+
+    if (verbose_flag)
+        std::cout << "Rotated bases:\na:\n" << basis[0] << "\nb:\n" << basis[1] << "\nc:\n" << basis[2] << std::endl;
 
     // AFFINE TRANSFORM STUFF
 
@@ -230,6 +217,11 @@ void makeXYZ(CIFReader cif, std::string output_file, double u, double v, double 
         count += at.getElements().size() * at.getPositions().size();
     count = count * x_range * y_range * z_range;
 
+    if (verbose_flag)
+        std::cout << "Calculated tiling needed to span cell:\nx:\n" << x_range << "\ny:\n" << y_range << "\nz:\n" << z_range << std::endl;
+    if (x_range == 0 || y_range == 0 || z_range == 0 )
+        throw std::runtime_error("Did not find any atoms inside limits");
+
     std::vector<std::string> element_list(count);
     std::vector<double> x_list(count);
     std::vector<double> y_list(count);
@@ -273,6 +265,9 @@ void makeXYZ(CIFReader cif, std::string output_file, double u, double v, double 
         }
     }
 
+    if (x_list.size() == 0 || y_list.size() == 0 || z_list.size() == 0 )
+        throw std::runtime_error("Did not find any atoms inside limits");
+
     // TODO: all this can be put into a function
     // re use the min and max variables here
     x_min = *std::min_element(x_list.begin(), x_list.end());
@@ -309,6 +304,8 @@ void makeXYZ(CIFReader cif, std::string output_file, double u, double v, double 
                     valid_count++;
                 }
 
+    std::cout << "Opening file: " << output_file << " for writing" << std::endl;
+
     std::ofstream myfile;
     myfile.open (output_file);
 
@@ -320,11 +317,175 @@ void makeXYZ(CIFReader cif, std::string output_file, double u, double v, double 
             myfile << element_list[i] << " " << (x_list[i] - x_low)/10 << " " << (y_list[i] - y_low)/10 << " " << (z_list[i] - z_low)/10 << " " << occupancy_list[i] << "\n";
 
     myfile.close();
+    std::cout << "All done!" << std::endl;
+}
 
-//    end = std::chrono::system_clock::now();
-//    std::chrono::duration<double> elapsed_seconds = end - start;
 
-//    std::cout << "Created .xyz in " << elapsed_seconds.count() << "s" << std::endl;
 
-//    return 0;
+int main(int argc, char *argv[])
+{
+    verbose_flag = 0; // set the here to be 100% that it is zero
+
+    int cc;
+
+    std::string output_xyz = "";
+    std::string input_cif = "";
+    double u, v, w, a, b, c, x, y, z, alpha, beta, gamma;
+    u = v = w = a = b = c = x = y = z = alpha = beta  = gamma = 0;
+
+    bool valid = true;
+
+    while (true)
+    {
+        static struct option long_options[] =
+                {
+                        {"help",       no_argument,       nullptr,       'h'},
+                        {"version",    no_argument,       nullptr,       'v'},
+                        {"zone",       required_argument, nullptr,       'z'},
+                        {"dimensions", required_argument, nullptr,       'd'},
+                        {"output",     optional_argument, nullptr,       'o'},
+                        {"normal",     optional_argument, nullptr,       'n'},
+                        {"tilt",       optional_argument, nullptr,       't'},
+                        {"verbose",    no_argument,       &verbose_flag, 1},
+                        {nullptr,      0,                 nullptr,       0}
+                };
+        // getopt_long stores the option index here.
+        int option_index = 0;
+        cc = getopt_long (argc, argv, "hvz:d:o:n:t:", long_options, &option_index);
+
+        // Detect the end of the options.
+        if (cc == -1)
+            break;
+
+        switch (cc)
+        {
+            case 0:
+                break;
+            case 'h':
+                printHelp();
+                return 0;
+            case 'v':
+                printVersion();
+                return 0;
+            case 'o':
+                output_xyz = optarg;
+                break;
+            case 'z':
+                try {
+                    parseThreeCommaList(optarg, u, v, w);
+                } catch (const std::exception& ex) {
+                    std::cerr << "Error: Cannot parse zone axis:" << "\n\t" << ex.what() << std::endl;
+                    valid = false;
+                }
+                break;
+            case 'n':
+                try {
+                    parseThreeCommaList(optarg, a, b, c);
+                } catch (const std::exception& ex) {
+                    std::cerr << "Error: Cannot parse normal vector:" << "\n\t" << ex.what() << std::endl;
+                    valid = false;
+                }
+                break;
+            case 't':
+                try {
+                    parseThreeCommaList(optarg, alpha, beta, gamma);
+                } catch (const std::exception& ex) {
+                    std::cerr << "Error: Cannot parse tilt angles:" << "\n\t" << ex.what() << std::endl;
+                    valid = false;
+                }
+                break;
+            case 'd':
+                try {
+                    parseThreeCommaList(optarg, x, y, z);
+                } catch (const std::exception& ex) {
+                    std::cerr << "Error: Cannot parse superstructure dimensions:" << "\n\t" << ex.what() << std::endl;
+                    valid = false;
+                }
+                break;
+            case '?':
+                // getopt_long already printed an error message.
+                break;
+
+            default:
+                return 1;
+        }
+    }
+
+    // do the input file (it's the only non option arg)
+
+    // get the non option args
+    std::vector<std::string> non_option_args;
+    while (optind < argc)
+        non_option_args.emplace_back(argv[optind++]);
+
+    if (non_option_args.size() < 1) {
+        std::cerr << "Error: Need one non-option argument (the input .cif)" << std::endl;
+        valid = false;
+    }
+
+
+    if (non_option_args.size() > 1) {
+        std::cerr << "Error: Only expecting one non-option argument (the input .cif). Instead got:" << std::endl;
+        for (std::string& s : non_option_args)
+            std::cerr << "\t" << s << std::endl;
+        valid = false;
+    }
+
+    // this is where the input is actually set
+    if (non_option_args.size() == 1)
+        input_cif = non_option_args[0];
+
+    if (u == 0 && v == 0 && w == 0)  {
+        std::cerr << "Error: Did not get valid zone axis" << std::endl;
+        valid = false;
+    }
+
+    if (x <= 0 || y <= 0 || z <= 0)  {
+        std::cerr << "Error: Did not get valid superstructure dimensions" << std::endl;
+        valid = false;
+    }
+
+    std::ifstream test_stream(input_cif);
+
+    std::stringstream ss;
+    ss << test_stream.rdbuf();
+    test_stream.close();
+    std::string file = ss.str();
+
+    if (file.empty()) {
+        std::cerr << "Error: Invalid input .cif file" << std::endl;
+        valid = false;
+    }
+
+
+    if (!valid)
+        return 1;
+    // we now have everything we need in some form. Need to verify the file/directory now.s
+
+
+
+    // output file:
+    // if we were not give an output file, use the input file (but change the extension)
+    if (output_xyz.empty())
+    {
+        output_xyz = input_cif;
+        if (endsWith(output_xyz, ".cif"))
+            output_xyz = removeEnd(output_xyz, 4) + ".xyz";
+    }
+
+    // else just go with it, but append xyz if it doesnt have it already.
+    if (!endsWith(output_xyz, ".xyz"))
+        output_xyz += ".xyz";
+
+
+    if (verbose_flag) {
+        std::cout << "Verbose flag is set" << std::endl << std::endl;
+    }
+
+    try {
+        CIFReader cif = CIFReader(input_cif);
+        makeXYZ(cif, output_xyz, u, v, w, a, b, c, x, y, z, alpha, beta, gamma);
+    } catch (const std::exception& ex) {
+        std::cerr << "Error: could not create superstructure:\n\t" << ex.what() << std::endl;
+    }
 }
