@@ -48,12 +48,15 @@ template <typename T>
 void parseThreeCommaList(std::string lst, T& a, T& b, T& c)
 {
     std::istringstream ss(lst);
-    int v;
     std::string part;
-    std::vector<int> vec;
+    T v;
+    std::vector<T> vec;
     while(ss.good()) {
         getline( ss, part, ',' );
-        vec.emplace_back(std::stoi(part));
+//        vec.emplace_back(std::stoi(part));
+        std::istringstream ssp(part);
+        ssp >> v;
+        vec.emplace_back(v);
     }
 
     if (vec.size() != 3)
@@ -307,7 +310,7 @@ void makeXYZ(CIFReader cif, std::string output_file, double u, double v, double 
     std::cout << "Opening file: " << output_file << " for writing" << std::endl;
 
     std::ofstream myfile;
-    myfile.open (output_file);
+    myfile.open(output_file);
 
     myfile << std::fixed << std::showpoint << std::setprecision(5);
     myfile << valid_count << "\n" << "occ\n";
@@ -372,7 +375,7 @@ int main(int argc, char *argv[])
                 break;
             case 'z':
                 try {
-                    parseThreeCommaList(optarg, u, v, w);
+                    parseThreeCommaList<double>(optarg, u, v, w);
                 } catch (const std::exception& ex) {
                     std::cerr << "Error: Cannot parse zone axis:" << "\n\t" << ex.what() << std::endl;
                     valid = false;
@@ -380,7 +383,7 @@ int main(int argc, char *argv[])
                 break;
             case 'n':
                 try {
-                    parseThreeCommaList(optarg, a, b, c);
+                    parseThreeCommaList<double>(optarg, a, b, c);
                 } catch (const std::exception& ex) {
                     std::cerr << "Error: Cannot parse normal vector:" << "\n\t" << ex.what() << std::endl;
                     valid = false;
@@ -388,7 +391,7 @@ int main(int argc, char *argv[])
                 break;
             case 't':
                 try {
-                    parseThreeCommaList(optarg, alpha, beta, gamma);
+                    parseThreeCommaList<double>(optarg, alpha, beta, gamma);
                 } catch (const std::exception& ex) {
                     std::cerr << "Error: Cannot parse tilt angles:" << "\n\t" << ex.what() << std::endl;
                     valid = false;
@@ -396,7 +399,7 @@ int main(int argc, char *argv[])
                 break;
             case 'd':
                 try {
-                    parseThreeCommaList(optarg, x, y, z);
+                    parseThreeCommaList<double>(optarg, x, y, z);
                 } catch (const std::exception& ex) {
                     std::cerr << "Error: Cannot parse superstructure dimensions:" << "\n\t" << ex.what() << std::endl;
                     valid = false;
@@ -457,12 +460,9 @@ int main(int argc, char *argv[])
         valid = false;
     }
 
-
     if (!valid)
         return 1;
     // we now have everything we need in some form. Need to verify the file/directory now.s
-
-
 
     // output file:
     // if we were not give an output file, use the input file (but change the extension)
@@ -482,10 +482,21 @@ int main(int argc, char *argv[])
         std::cout << "Verbose flag is set" << std::endl << std::endl;
     }
 
+    std::shared_ptr<CIFReader> cif;
+
     try {
-        CIFReader cif = CIFReader(input_cif);
-        makeXYZ(cif, output_xyz, u, v, w, a, b, c, x, y, z, alpha, beta, gamma);
+        cif = std::make_shared<CIFReader>(input_cif);
+    } catch (const std::exception& ex) {
+        std::cerr << "Error: could not read cif file:\n\t" << ex.what() << std::endl;
+        return 1;
+    }
+
+    try {
+        makeXYZ(*cif, output_xyz, u, v, w, a, b, c, x, y, z, alpha, beta, gamma);
     } catch (const std::exception& ex) {
         std::cerr << "Error: could not create superstructure:\n\t" << ex.what() << std::endl;
+        return 1;
     }
+
+    return 0;
 }
