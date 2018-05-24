@@ -39,9 +39,21 @@ std::string removeEnd(std::string str, int num)
 void makeXYZ(CIFReader cif, std::string output_file, double u, double v, double w, double a, double b, double c, double x_width, double y_width, double z_width, double alpha, double beta, double gamma);
 
 /// Prints the help message
-void printHelp() {}
+void printHelp()
+{
+    std::cout << "usage: cif2xyz cif_file [options]\n"
+                 "  options:\n"
+                 "    -h : (--help) print this help message and exit\n"
+                 "    -v : (--version) print the clTEM command line version number and exit\n"
+                 "    -z : (--zone) REQUIRED comma separated list for the crystal zone axis\n"
+                 "    -d : (--dimensions) REQUIRED the size of the supercell in Ångströms\n"
+                 "    -o : (--output) the output file name\n"
+                 "    -n : (--normal) comma separated list for the axis to be aligned with the x direction\n"
+                 "    -t : (--tilt) comma separated list for tilts about the x,y,z axes in degrees\n"
+                 "    --verbose : show full output" << std::endl;
+}
 
-void printVersion() { std::cout << "xyz2cif version: 0.1a" << std::endl; }
+void printVersion() { std::cout << "cif2xyz version: 0.1a" << std::endl; }
 
 /// Parse a string with 3 numbers separated by commas
 template <typename T>
@@ -313,7 +325,7 @@ void makeXYZ(CIFReader cif, std::string output_file, double u, double v, double 
     myfile.open(output_file);
 
     myfile << std::fixed << std::showpoint << std::setprecision(5);
-    myfile << valid_count << "\n" << "occ\n";
+    myfile << valid_count << "\n" << "occ nm\n";
 
     for(int i = 0; i < count; ++i)
         if (position_valid[i])
