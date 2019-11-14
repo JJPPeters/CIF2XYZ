@@ -10,15 +10,16 @@ if(FFTW_FOUND)
 endif(FFTW_FOUND)
 
 set(HEADER_FILES
-		Utilities.h)
+		unitcell.h)
 
 set(SOURCE_FILES
 		main.cpp
-		CIFReader.cpp
-		UnitCell.cpp
-		SymmetryOperation.cpp
-		AtomSite.cpp
-		CellGeometry.cpp)
+        reader.cpp
+		symmetryoperation.cpp
+        atomsite.cpp
+		cellgeometry.cpp
+		utilities.cpp
+		supercell.cpp)
 
 include_directories(
 		${EIGEN3_INCLUDE_DIR})
