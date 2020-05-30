@@ -1,4 +1,4 @@
-remote_theme: JJPPeters/jekyll-graphene-theme
+remote_theme: mmistakes/minimal-mistakes
 
 # setup
 title: CIF2XYZ # this is the main title in the header
