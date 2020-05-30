@@ -1,5 +1,4 @@
-remote_theme: pietromenna/jekyll-cayman-theme
-markdown: kramdown
+remote_theme: JJPPeters/jekyll-graphene-theme
 
 # setup
 title: CIF2XYZ # this is the main title in the header
